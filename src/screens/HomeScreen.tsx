@@ -1,18 +1,23 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { CompositeScreenProps } from "@react-navigation/native";
+import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/types";
-import { DateHeader } from "../components/home/DateHeader";
-import { HabitsList } from "../components/home/HabitsList";
-import { ProgressSummary } from "../components/home/ProgressSummary";
-import { AddButton } from "../components/home/AddButton";
+import { RootStackParamList, MainTabParamList } from "../navigation/types";
 import { Habit, HabitSummary } from "../types";
-import { getHabits, toggleHabitCompletion, calculateCompletionStatus, saveHabits } from "../utils/storage";
+import { getHabits, toggleHabitCompletion, saveHabits } from "../utils/storage";
+import { DateHeader } from "../components/home/DateHeader";
+import { ProgressSummary } from "../components/home/ProgressSummary";
+import { HabitsList } from "../components/home/HabitsList";
+import { AddButton } from "../components/home/AddButton";
 import { getTodayISOString } from "../utils/date";
 import { generateDummyHabits } from "../utils/dummyData";
 
-type Props = NativeStackScreenProps<RootStackParamList, "Home">;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, "Home">,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 export function HomeScreen({ navigation }: Props): React.ReactElement {
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -44,44 +49,65 @@ export function HomeScreen({ navigation }: Props): React.ReactElement {
 
       setHabits(loadedHabits);
 
-      // 오늘의 습관 완료 상태 계산
-      const todayStatus = calculateCompletionStatus(loadedHabits, todayDate);
-      setSummary(todayStatus);
+      // 오늘 날짜의 습관 완료 상태 계산
+      const todayKey = todayDate.split("T")[0];
+      const completedCount = loadedHabits.filter((h) => h.completedDates.some((d) => d.startsWith(todayKey))).length;
+
+      setSummary({
+        total: loadedHabits.length,
+        completed: completedCount,
+        completionRate: loadedHabits.length ? Math.round((completedCount / loadedHabits.length) * 100) : 0,
+      });
     } catch (error) {
-      console.error("습관 데이터 로드 오류:", error);
+      console.error("Failed to load habits:", error);
     }
   };
 
   // 습관 완료 상태 토글
   const handleToggleHabit = async (id: string) => {
     try {
-      const updatedHabits = await toggleHabitCompletion(id, todayDate);
-      setHabits(updatedHabits);
-
-      // 완료 상태 업데이트 후 요약 정보 갱신
-      const updatedSummary = calculateCompletionStatus(updatedHabits, todayDate);
-      setSummary(updatedSummary);
+      await toggleHabitCompletion(id, todayDate);
+      await loadHabits(); // 목록 다시 로드
     } catch (error) {
-      console.error("습관 상태 변경 오류:", error);
+      console.error("Failed to toggle habit:", error);
     }
   };
 
-  // 새 습관 추가 화면으로 이동
+  // 습관 추가 화면으로 이동
   const handleAddHabit = () => {
     navigation.navigate("AddHabit");
   };
 
-  // 습관 편집 화면으로 이동
-  const handleEditHabit = (habit: Habit) => {
-    navigation.navigate("EditHabit", { habit });
-  };
+  // 습관 편집 화면으로 이동하는 핸들러
+  const handleEditHabit = useCallback(
+    (habit: Habit) => {
+      navigation.navigate("EditHabit", { habit });
+    },
+    [navigation]
+  );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <DateHeader date={todayDate} />
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={styles.header}>
+        <DateHeader date={todayDate} />
 
-      <View style={styles.contentContainer}>
-        <ProgressSummary summary={summary} />
+        <View style={styles.progressSection}>
+          <ProgressSummary summary={summary} />
+          <View style={styles.progressBarContainer}>
+            <View style={styles.progressBackground}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${summary.completionRate}%` },
+                  summary.completionRate === 100 ? styles.completed : null,
+                ]}
+              />
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.habitsListContainer}>
         <HabitsList habits={habits} onToggleHabit={handleToggleHabit} onEditHabit={handleEditHabit} />
       </View>
 
@@ -95,7 +121,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f9f9f9",
   },
-  contentContainer: {
+  header: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    backgroundColor: "#ffffff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eeeeee",
+  },
+  progressSection: {
+    marginBottom: 12,
+  },
+  progressBarContainer: {
+    marginBottom: 8,
+  },
+  progressBackground: {
+    height: 12,
+    backgroundColor: "#E9E9E9",
+    borderRadius: 6,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#007AFF",
+    borderRadius: 6,
+  },
+  completed: {
+    backgroundColor: "#34C759",
+  },
+  habitsListContainer: {
     flex: 1,
   },
 });

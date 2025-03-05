@@ -24,6 +24,14 @@ export function formatDateToKorean(dateString?: string): string {
 }
 
 /**
+ * ISO 형식의 날짜 문자열을 한국어 형식으로 변환합니다.
+ * CalendarScreen에서 사용됩니다.
+ */
+export function formatDate(dateString: string): string {
+  return formatDateToKorean(dateString);
+}
+
+/**
  * 오늘 날짜인지 확인합니다.
  */
 export function isToday(dateString: string): boolean {
