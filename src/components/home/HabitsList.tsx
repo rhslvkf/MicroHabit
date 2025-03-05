@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View, FlatList } from "react-native";
 import { Habit } from "../../types";
 import { HabitItem } from "./HabitItem";
+import { useTheme } from "../../themes/ThemeContext";
 
 interface HabitsListProps {
   habits: Habit[];
@@ -10,10 +11,12 @@ interface HabitsListProps {
 }
 
 export function HabitsList({ habits, onToggleHabit, onEditHabit }: HabitsListProps): React.ReactElement {
+  const { theme } = useTheme();
+
   if (habits.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>
+      <View style={[styles.emptyContainer, { backgroundColor: theme.background }]}>
+        <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
           등록된 습관이 없습니다.{"\n"}
           새로운 습관을 추가해 보세요!
         </Text>
@@ -27,6 +30,7 @@ export function HabitsList({ habits, onToggleHabit, onEditHabit }: HabitsListPro
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => <HabitItem habit={item} onToggle={onToggleHabit} onLongPress={onEditHabit} />}
       contentContainerStyle={styles.listContainer}
+      style={{ backgroundColor: theme.background }}
       showsVerticalScrollIndicator={false}
     />
   );
@@ -46,7 +50,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: "#666",
     textAlign: "center",
     lineHeight: 24,
   },

@@ -9,6 +9,7 @@ import { RootStackParamList, MainTabParamList } from "../navigation/types";
 import { Habit } from "../types";
 import { getHabits, calculateCompletionStatus } from "../utils/storage";
 import { formatDate, getTodayISOString } from "../utils/date";
+import { useTheme } from "../themes/ThemeContext";
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, "Calendar">,
@@ -16,6 +17,7 @@ type Props = CompositeScreenProps<
 >;
 
 export function CalendarScreen({ navigation, route }: Props): React.ReactElement {
+  const { theme, mode } = useTheme();
   // 전달받은 날짜 파라미터가 있으면 사용하고, 없으면 오늘 날짜 사용
   const initialDate = route.params?.selectedDate || getTodayISOString();
 
@@ -23,13 +25,22 @@ export function CalendarScreen({ navigation, route }: Props): React.ReactElement
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [markedDates, setMarkedDates] = useState<{ [date: string]: any }>({});
   const [dateHabits, setDateHabits] = useState<Habit[]>([]);
+  const [themeMode, setThemeMode] = useState<string>(mode);
+
+  // 테마 모드 변경 감지
+  useEffect(() => {
+    setThemeMode(mode);
+  }, [mode]);
 
   // 습관 ID에 따라 색상 생성 (단순화를 위해 몇 가지 고정 색상 사용)
-  const getHabitColor = useCallback((id: string): string => {
-    const colors = ["#007AFF", "#34C759", "#FF9500", "#FF2D55", "#5856D6", "#AF52DE"];
-    const index = id.charCodeAt(0) % colors.length;
-    return colors[index];
-  }, []);
+  const getHabitColor = useCallback(
+    (id: string): string => {
+      const colors = [theme.primary, theme.success, theme.accent, theme.error, theme.secondary];
+      const index = id.charCodeAt(0) % colors.length;
+      return colors[index];
+    },
+    [theme]
+  );
 
   // 달력에 표시할 마커 생성
   const generateMarkedDates = useCallback(
@@ -159,68 +170,161 @@ export function CalendarScreen({ navigation, route }: Props): React.ReactElement
 
   // 습관 아이템 렌더링 함수
   const renderHabitItem = ({ item }: { item: Habit & { isCompleted: boolean } }) => (
-    <View style={styles.habitItem}>
+    <View style={[styles.habitItem, { backgroundColor: theme.card }]}>
       <View style={[styles.habitColor, { backgroundColor: getHabitColor(item.id) }]} />
       <View style={styles.habitInfo}>
-        <Text style={styles.habitTitle}>{item.title}</Text>
-        {item.description ? <Text style={styles.habitDescription}>{item.description}</Text> : null}
+        <Text style={[styles.habitTitle, { color: theme.text }]}>{item.title}</Text>
+        {item.description ? (
+          <Text style={[styles.habitDescription, { color: theme.textSecondary }]}>{item.description}</Text>
+        ) : null}
       </View>
-      <View style={[styles.completionStatus, item.isCompleted ? styles.completed : styles.notCompleted]}>
+      <View
+        style={[
+          styles.completionStatus,
+          item.isCompleted
+            ? [styles.completed, { backgroundColor: theme.habitComplete }]
+            : [styles.notCompleted, { backgroundColor: theme.habitIncomplete }],
+        ]}
+      >
         <Text style={styles.statusText}>{item.isCompleted ? "완료" : "미완료"}</Text>
       </View>
     </View>
   );
 
   // 빈 목록일 때 렌더링 함수
-  const renderEmptyComponent = () => <Text style={styles.emptyText}>이 날에 등록된 습관이 없습니다.</Text>;
+  const renderEmptyComponent = () => (
+    <Text style={[styles.emptyText, { color: theme.textSecondary }]}>이 날에 등록된 습관이 없습니다.</Text>
+  );
 
   // 목록의 푸터 컴포넌트 (마지막 아이템과 탭 사이 공간 제거)
   const renderFooter = () => <View style={{ height: 1 }} />;
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.calendarContainer}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]}>
+      <View
+        key={`calendar-container-${themeMode}`}
+        style={[styles.calendarContainer, { backgroundColor: mode === "dark" ? theme.card : "#FFFFFF" }]}
+      >
         <Calendar
           current={selectedDate.split("T")[0]}
           markingType="multi-dot"
           markedDates={markedDates}
           onDayPress={handleDateSelect}
           theme={{
-            todayTextColor: "#007AFF",
-            selectedDayBackgroundColor: "#007AFF",
-            arrowColor: "#007AFF",
-            dotColor: "#007AFF",
+            // 배경색상을 테마에 따라 명시적으로 설정
+            backgroundColor: mode === "dark" ? theme.card : "#FFFFFF",
+            calendarBackground: mode === "dark" ? theme.card : "#FFFFFF",
+
+            // 텍스트 색상
+            textSectionTitleColor: theme.textSecondary,
+            textSectionTitleDisabledColor: theme.textDisabled,
+            selectedDayBackgroundColor: theme.primary,
+            selectedDayTextColor: "#ffffff",
+            todayTextColor: theme.primary,
+            dayTextColor: theme.text,
+            textDisabledColor: theme.textDisabled,
+
+            // 점 색상
+            dotColor: theme.primary,
+            selectedDotColor: "#ffffff",
+
+            // 화살표 색상
+            arrowColor: theme.primary,
+            disabledArrowColor: theme.textDisabled,
+
+            // 글꼴 설정
             textDayFontFamily: "System",
             textMonthFontFamily: "System",
             textDayHeaderFontFamily: "System",
+            textDayFontWeight: "400",
+            textMonthFontWeight: "bold",
+            textDayHeaderFontWeight: "400",
+
+            // 추가적인 테마 속성 적용
+            todayBackgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
+            agendaDayTextColor: theme.text,
+            agendaDayNumColor: theme.text,
+            agendaTodayColor: theme.primary,
+
+            // 헤더 스타일시트
+            "stylesheet.calendar.header": {
+              header: {
+                flexDirection: "row",
+                justifyContent: "space-between",
+                paddingLeft: 10,
+                paddingRight: 10,
+                marginTop: 6,
+                alignItems: "center",
+                backgroundColor: mode === "dark" ? theme.card : "#FFFFFF",
+              },
+              monthText: {
+                fontSize: 18,
+                fontWeight: "bold",
+                color: theme.text,
+              },
+              week: {
+                marginTop: 5,
+                flexDirection: "row",
+                justifyContent: "space-around",
+                backgroundColor: mode === "dark" ? theme.card : "#FFFFFF",
+                borderBottomWidth: 1,
+                borderBottomColor: theme.divider,
+                paddingBottom: 5,
+              },
+              dayHeader: {
+                marginTop: 2,
+                marginBottom: 2,
+                width: 32,
+                textAlign: "center",
+                fontSize: 13,
+                color: theme.textSecondary,
+              },
+            },
+
+            // 기본 스타일시트
+            "stylesheet.day.basic": {
+              base: {
+                width: 32,
+                height: 32,
+                alignItems: "center",
+                backgroundColor: mode === "dark" ? theme.card : "#FFFFFF",
+              },
+              text: {
+                color: theme.text,
+                marginTop: 4,
+                fontSize: 16,
+                fontWeight: "400",
+                backgroundColor: "transparent",
+              },
+            },
           }}
         />
       </View>
 
-      <View style={styles.summaryContainer}>
-        <Text style={styles.dateTitle}>{formattedDate}</Text>
+      <View style={[styles.summaryContainer, { borderBottomColor: theme.divider }]}>
+        <Text style={[styles.dateTitle, { color: theme.text }]}>{formattedDate}</Text>
         <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>전체 습관</Text>
-            <Text style={styles.summaryValue}>{summary.total}개</Text>
+            <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>전체 습관</Text>
+            <Text style={[styles.summaryValue, { color: theme.text }]}>{summary.total}개</Text>
           </View>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>완료 습관</Text>
-            <Text style={styles.summaryValue}>{summary.completed}개</Text>
+            <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>완료 습관</Text>
+            <Text style={[styles.summaryValue, { color: theme.text }]}>{summary.completed}개</Text>
           </View>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>완료율</Text>
-            <Text style={styles.summaryValue}>{summary.rate}%</Text>
+            <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>완료율</Text>
+            <Text style={[styles.summaryValue, { color: theme.text }]}>{summary.rate}%</Text>
           </View>
         </View>
       </View>
 
       <View style={styles.habitsHeaderContainer}>
-        <Text style={styles.sectionTitle}>이 날의 습관</Text>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>이 날의 습관</Text>
       </View>
 
       <FlatList
-        style={styles.habitsList}
+        style={[styles.habitsList, { backgroundColor: theme.background }]}
         data={dateHabits}
         keyExtractor={(item) => item.id}
         renderItem={renderHabitItem}
@@ -235,7 +339,6 @@ export function CalendarScreen({ navigation, route }: Props): React.ReactElement
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   calendarContainer: {
     paddingBottom: 8,
@@ -243,12 +346,11 @@ const styles = StyleSheet.create({
   summaryContainer: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#EEEEEE",
   },
   dateTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   summaryRow: {
     flexDirection: "row",
@@ -259,20 +361,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   summaryLabel: {
-    fontSize: 14,
-    color: "#666",
+    fontSize: 12,
     marginBottom: 4,
   },
   summaryValue: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
-    color: "#333",
   },
   habitsHeaderContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEEEEE",
+    padding: 16,
+    paddingBottom: 8,
   },
   sectionTitle: {
     fontSize: 16,
@@ -283,21 +381,19 @@ const styles = StyleSheet.create({
   },
   habitsListContent: {
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 0,
+    paddingBottom: 16,
   },
   habitItem: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
+    padding: 16,
     borderRadius: 8,
-    backgroundColor: "#F9F9F9",
     marginBottom: 8,
   },
   habitColor: {
-    width: 12,
-    height: 45,
-    borderRadius: 6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     marginRight: 12,
   },
   habitInfo: {
@@ -305,34 +401,27 @@ const styles = StyleSheet.create({
   },
   habitTitle: {
     fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 4,
+    fontWeight: "500",
   },
   habitDescription: {
     fontSize: 14,
-    color: "#666",
+    marginTop: 4,
   },
   completionStatus: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
-    marginLeft: 8,
+    borderRadius: 12,
   },
-  completed: {
-    backgroundColor: "#34C759",
-  },
-  notCompleted: {
-    backgroundColor: "#FF3B30",
-  },
+  completed: {},
+  notCompleted: {},
   statusText: {
-    color: "#FFF",
-    fontWeight: "bold",
     fontSize: 12,
+    fontWeight: "bold",
+    color: "white",
   },
   emptyText: {
     textAlign: "center",
-    color: "#999",
-    marginTop: 32,
+    padding: 24,
     fontSize: 16,
   },
 });

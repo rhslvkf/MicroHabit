@@ -13,6 +13,7 @@ import { HabitsList } from "../components/home/HabitsList";
 import { AddButton } from "../components/home/AddButton";
 import { getTodayISOString } from "../utils/date";
 import { generateDummyHabits } from "../utils/dummyData";
+import { useTheme } from "../themes/ThemeContext";
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, "Home">,
@@ -20,6 +21,7 @@ type Props = CompositeScreenProps<
 >;
 
 export function HomeScreen({ navigation }: Props): React.ReactElement {
+  const { theme } = useTheme();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [summary, setSummary] = useState<HabitSummary>({
     total: 0,
@@ -87,19 +89,21 @@ export function HomeScreen({ navigation }: Props): React.ReactElement {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]}>
+      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.divider }]}>
         <DateHeader date={todayDate} />
 
         <View style={styles.progressSection}>
           <ProgressSummary summary={summary} />
           <View style={styles.progressBarContainer}>
-            <View style={styles.progressBackground}>
+            <View style={[styles.progressBackground, { backgroundColor: theme.divider }]}>
               <View
                 style={[
                   styles.progressFill,
-                  { width: `${summary.completionRate}%` },
-                  summary.completionRate === 100 ? styles.completed : null,
+                  {
+                    width: `${summary.completionRate}%`,
+                    backgroundColor: summary.completionRate === 100 ? theme.success : theme.primary,
+                  },
                 ]}
               />
             </View>
@@ -119,14 +123,11 @@ export function HomeScreen({ navigation }: Props): React.ReactElement {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9f9f9",
   },
   header: {
     paddingHorizontal: 16,
     paddingBottom: 8,
-    backgroundColor: "#ffffff",
     borderBottomWidth: 1,
-    borderBottomColor: "#eeeeee",
   },
   progressSection: {
     marginBottom: 12,
@@ -136,17 +137,12 @@ const styles = StyleSheet.create({
   },
   progressBackground: {
     height: 12,
-    backgroundColor: "#E9E9E9",
     borderRadius: 6,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#007AFF",
     borderRadius: 6,
-  },
-  completed: {
-    backgroundColor: "#34C759",
   },
   habitsListContainer: {
     flex: 1,
