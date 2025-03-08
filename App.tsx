@@ -6,6 +6,7 @@ import { ThemeProvider, useTheme } from "./src/themes/ThemeContext";
 import { registerForPushNotificationsAsync, cancelAllNotifications } from "./src/utils/notifications";
 import { rescheduleAllHabitNotifications } from "./src/utils/storage";
 import * as Notifications from "expo-notifications";
+import { initializeAds, preloadRewardAd } from "./src/utils/ads";
 
 // StatusBar를 테마에 맞게 설정하는 컴포넌트
 function ThemedStatusBar() {
@@ -15,7 +16,7 @@ function ThemedStatusBar() {
 
 // 앱 내용을 감싸는 컴포넌트
 const AppContent = () => {
-  // 알림 초기화
+  // 알림 및 광고 초기화
   useEffect(() => {
     // 알림 초기화 및 필요한 경우만 재설정
     async function initNotifications() {
@@ -61,7 +62,21 @@ const AppContent = () => {
       }
     }
 
+    // 광고 SDK 초기화
+    async function initAdsSdk() {
+      try {
+        const initialized = await initializeAds();
+        if (initialized) {
+          // 리워드 광고 미리 로드
+          await preloadRewardAd();
+        }
+      } catch (error) {
+        console.error("광고 초기화 오류:", error);
+      }
+    }
+
     initNotifications();
+    initAdsSdk();
 
     // 알림 수신 리스너
     const notificationReceivedListener = Notifications.addNotificationReceivedListener((notification) => {

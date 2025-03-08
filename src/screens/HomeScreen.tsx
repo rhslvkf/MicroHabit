@@ -1,21 +1,21 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { StyleSheet, View, Text, ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { CompositeScreenProps } from "@react-navigation/native";
 import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
+import { CompositeScreenProps } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList, MainTabParamList } from "../navigation/types";
-import { Habit, HabitSummary, Category } from "../types";
-import { getHabits, toggleHabitCompletion, saveHabits, getCategories, filterHabitsByCategory } from "../utils/storage";
-import { DateHeader } from "../components/home/DateHeader";
-import { ProgressSummary } from "../components/home/ProgressSummary";
-import { HabitsList } from "../components/home/HabitsList";
+import React, { useCallback, useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { AddButton } from "../components/home/AddButton";
 import { CategoryFilter } from "../components/home/CategoryFilter";
+import { DateHeader } from "../components/home/DateHeader";
+import { HabitItem } from "../components/home/HabitItem";
+import { ProgressSummary } from "../components/home/ProgressSummary";
+import { MainTabParamList, RootStackParamList } from "../navigation/types";
+import { useTheme } from "../themes/ThemeContext";
+import { Category, Habit, HabitSummary } from "../types";
 import { getTodayISOString } from "../utils/date";
 import { generateDummyHabits } from "../utils/dummyData";
-import { useTheme } from "../themes/ThemeContext";
-import { HabitItem } from "../components/home/HabitItem";
+import { trackHabitCompletion } from "../utils/review";
+import { filterHabitsByCategory, getCategories, getHabits, saveHabits, toggleHabitCompletion } from "../utils/storage";
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, "Home">,
@@ -108,11 +108,24 @@ export function HomeScreen({ navigation }: Props): React.ReactElement {
     }
   }, [selectedCategoryId, habits]);
 
-  // 습관 완료 상태 토글
+  // 습관 완료 상태 토글 (광고 로직 제거)
   const handleToggleHabit = async (id: string) => {
     try {
+      // 현재 습관 상태 확인
+      const habit = habits.find((h) => h.id === id);
+      if (!habit) return;
+
+      // 완료되지 않은 습관을 완료로 변경하는 경우에만 추적
+      const isCompletingHabit = !habit.isCompleted;
+
       // 매번 최신 날짜 사용
       await toggleHabitCompletion(id, getTodayDate());
+
+      // 습관이 완료 상태로 변경되었을 때만 리뷰 트래킹 실행
+      if (isCompletingHabit) {
+        await trackHabitCompletion();
+      }
+
       await loadHabits(); // 목록 다시 로드
     } catch (error) {
       console.error("Failed to toggle habit:", error);

@@ -1,27 +1,35 @@
 {
   "expo": {
     "name": "MicroHabit",
-    "slug": "MicroHabit",
+    "slug": "microhabit",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#6a3ce7"
     },
     "ios": {
+      "bundleIdentifier": "com.fullmoon.MicroHabit",
+      "buildNumber": "1",
       "supportsTablet": true,
-      "bundleIdentifier": "com.fullmoon.MicroHabit"
+      "config": {
+        "googleMobileAdsAppId": "ca-app-pub-8843457940870268~9206570475"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#6a3ce7"
       },
-      "package": "com.fullmoon.MicroHabit"
+      "package": "com.fullmoon.MicroHabit",
+      "versionCode": 1,
+      "config": {
+        "googleMobileAdsAppId": "ca-app-pub-8843457940870268~6708399646"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

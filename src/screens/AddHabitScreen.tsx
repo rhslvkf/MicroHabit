@@ -19,6 +19,7 @@ import { getTodayISOString } from "../utils/date";
 import { useTheme } from "../themes/ThemeContext";
 import { CategorySelector } from "../components/common/CategorySelector";
 import { NotificationSelector } from "../components/common/NotificationSelector";
+import { showRewardAd, incrementHabitActionCount, shouldShowAdForHabitAction } from "../utils/ads";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddHabit">;
 
@@ -30,6 +31,7 @@ export function AddHabitScreen({ navigation }: Props): React.ReactElement {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState<NotificationSetting | undefined>(undefined);
+  const [isAdLoading, setIsAdLoading] = useState(false);
 
   // 카테고리 목록 로드
   useEffect(() => {
@@ -55,6 +57,45 @@ export function AddHabitScreen({ navigation }: Props): React.ReactElement {
     try {
       setIsSubmitting(true);
 
+      // 액션 카운트 증가
+      const count = await incrementHabitActionCount();
+      console.log(`습관 추가/수정 카운트: ${count}`);
+
+      // 5회마다 광고 표시
+      const showAd = await shouldShowAdForHabitAction();
+
+      if (showAd) {
+        // 광고 표시 시 사용자에게 묻지 않고 바로 광고 표시
+        setIsAdLoading(true);
+        const adShown = await showRewardAd();
+        setIsAdLoading(false);
+
+        if (adShown) {
+          // 광고가 성공적으로 표시된 후 습관 추가
+          await createHabit();
+        } else {
+          // 광고 표시 실패 시에도 계속 진행
+          Alert.alert("광고 로드 실패", "광고를 불러오는 중 문제가 발생했습니다. 다시 시도해 주세요.", [
+            {
+              text: "확인",
+              onPress: () => setIsSubmitting(false),
+            },
+          ]);
+        }
+      } else {
+        // 광고 표시 조건이 아니면 바로 습관 추가
+        await createHabit();
+      }
+    } catch (error) {
+      setIsSubmitting(false);
+      Alert.alert("오류", "처리 중 오류가 발생했습니다.");
+      console.error("처리 중 오류:", error);
+    }
+  };
+
+  // 습관 생성 로직을 별도 함수로 분리
+  const createHabit = async () => {
+    try {
       const today = getTodayISOString();
 
       const newHabit: Habit = {
@@ -79,7 +120,6 @@ export function AddHabitScreen({ navigation }: Props): React.ReactElement {
       } else {
         Alert.alert("오류", "습관을 추가하는 중 오류가 발생했습니다.");
       }
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -166,7 +206,7 @@ export function AddHabitScreen({ navigation }: Props): React.ReactElement {
                 },
               ]}
               onPress={() => navigation.goBack()}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isAdLoading}
             >
               <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>취소</Text>
             </TouchableOpacity>
@@ -175,12 +215,14 @@ export function AddHabitScreen({ navigation }: Props): React.ReactElement {
               style={[
                 styles.addButton,
                 { backgroundColor: theme.primary },
-                (!title.trim() || isSubmitting) && { backgroundColor: theme.textDisabled },
+                (!title.trim() || isSubmitting || isAdLoading) && { backgroundColor: theme.textDisabled },
               ]}
               onPress={handleAddHabit}
-              disabled={!title.trim() || isSubmitting}
+              disabled={!title.trim() || isSubmitting || isAdLoading}
             >
-              <Text style={styles.addButtonText}>{isSubmitting ? "추가 중..." : "습관 추가하기"}</Text>
+              <Text style={styles.addButtonText}>
+                {isSubmitting ? "추가 중..." : isAdLoading ? "광고 로딩 중..." : "습관 추가하기"}
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

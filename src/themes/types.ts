@@ -21,6 +21,7 @@ export interface ThemeColors {
   success: string;
   warning: string;
   error: string;
+  disabled: string;
 
   // 경계선, 구분선
   border: string;

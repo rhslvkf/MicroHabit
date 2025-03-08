@@ -77,7 +77,7 @@ export function SettingsScreen({ navigation }: Props): React.ReactElement {
               <Ionicons name="code-slash" size={22} color={theme.text} style={styles.settingIcon} />
               <Text style={[styles.settingText, { color: theme.text }]}>개발자</Text>
             </View>
-            <Text style={[styles.settingStatus, { color: theme.textSecondary }]}>MicroHabit Team</Text>
+            <Text style={[styles.settingStatus, { color: theme.textSecondary }]}>FullMoon</Text>
           </View>
         </View>
       </ScrollView>
@@ -119,6 +119,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
+    marginBottom: 2,
+    borderRadius: 8,
   },
   settingItemContent: {
     flexDirection: "row",

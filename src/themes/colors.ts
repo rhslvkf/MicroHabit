@@ -21,6 +21,7 @@ export const lightTheme: ThemeColors = {
   success: "#34C759",
   warning: "#FF9500",
   error: "#FF3B30",
+  disabled: "#DDDDDD",
 
   // 경계선, 구분선
   border: "#E5E5EA",
@@ -56,6 +57,7 @@ export const darkTheme: ThemeColors = {
   success: "#30D158",
   warning: "#FFB340",
   error: "#FF453A",
+  disabled: "#444444",
 
   // 경계선, 구분선
   border: "#383838",

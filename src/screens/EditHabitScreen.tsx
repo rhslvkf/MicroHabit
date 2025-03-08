@@ -18,6 +18,7 @@ import { updateHabit, deleteHabit, getHabits, getCategories, updateHabitNotifica
 import { useTheme } from "../themes/ThemeContext";
 import { CategorySelector } from "../components/common/CategorySelector";
 import { NotificationSelector } from "../components/common/NotificationSelector";
+import { incrementHabitActionCount, shouldShowAdForHabitAction, showRewardAd } from "../utils/ads";
 
 type Props = NativeStackScreenProps<RootStackParamList, "EditHabit">;
 
@@ -29,6 +30,7 @@ export function EditHabitScreen({ route, navigation }: Props): React.ReactElemen
   const [categoryId, setCategoryId] = useState(habit.categoryId || "other");
   const [categories, setCategories] = useState<Category[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAdLoading, setIsAdLoading] = useState(false);
   const [notification, setNotification] = useState<NotificationSetting | undefined>(habit.notification);
 
   // 카테고리 목록 로드
@@ -55,6 +57,51 @@ export function EditHabitScreen({ route, navigation }: Props): React.ReactElemen
     try {
       setIsSubmitting(true);
 
+      // 액션 카운트 증가
+      const count = await incrementHabitActionCount();
+      console.log(`습관 추가/수정 카운트: ${count}`);
+
+      // 5회마다 광고 표시
+      const showAd = await shouldShowAdForHabitAction();
+
+      if (showAd) {
+        // 광고 표시 시 사용자에게 묻지 않고 바로 광고 표시
+        setIsAdLoading(true);
+        const adShown = await showRewardAd();
+        setIsAdLoading(false);
+
+        if (adShown) {
+          // 광고가 성공적으로 표시된 후 습관 수정
+          await saveHabitChanges();
+        } else {
+          // 광고 표시 실패 시 재시도 요청
+          Alert.alert("광고 로드 실패", "광고를 불러오는 중 문제가 발생했습니다. 다시 시도해 주세요.", [
+            {
+              text: "확인",
+              onPress: () => setIsSubmitting(false),
+            },
+          ]);
+        }
+      } else {
+        // 광고 표시 조건이 아니면 바로 습관 수정
+        await saveHabitChanges();
+      }
+    } catch (error) {
+      console.error("습관 수정 중 오류 발생:", error);
+
+      // 중복 습관 이름에 대한 에러 메시지 구분
+      if (error instanceof Error && error.message.includes("같은 이름의 습관이 이미 존재")) {
+        Alert.alert("알림", error.message);
+      } else {
+        Alert.alert("오류", "습관을 수정하는 중 오류가 발생했습니다.");
+      }
+      setIsSubmitting(false);
+    }
+  };
+
+  // 실제 습관 변경사항 저장 로직
+  const saveHabitChanges = async () => {
+    try {
       const updatedHabit: Habit = {
         ...habit,
         title: title.trim(),
@@ -77,16 +124,7 @@ export function EditHabitScreen({ route, navigation }: Props): React.ReactElemen
       // 습관 수정 후 홈 화면으로 이동
       navigation.goBack();
     } catch (error) {
-      console.error("습관 수정 중 오류 발생:", error);
-
-      // 중복 습관 이름에 대한 에러 메시지 구분
-      if (error instanceof Error && error.message.includes("같은 이름의 습관이 이미 존재")) {
-        Alert.alert("알림", error.message);
-      } else {
-        Alert.alert("오류", "습관을 수정하는 중 오류가 발생했습니다.");
-      }
-    } finally {
-      setIsSubmitting(false);
+      throw error;
     }
   };
 
@@ -217,11 +255,17 @@ export function EditHabitScreen({ route, navigation }: Props): React.ReactElemen
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.saveButton, { backgroundColor: theme.primary }]}
+              style={[
+                styles.saveButton,
+                { backgroundColor: theme.primary },
+                (isSubmitting || isAdLoading) && { backgroundColor: theme.textDisabled },
+              ]}
               onPress={handleUpdateHabit}
-              disabled={!title.trim() || isSubmitting}
+              disabled={!title.trim() || isSubmitting || isAdLoading}
             >
-              <Text style={styles.saveButtonText}>{isSubmitting ? "저장 중..." : "저장하기"}</Text>
+              <Text style={styles.saveButtonText}>
+                {isSubmitting ? "저장 중..." : isAdLoading ? "광고 로딩 중..." : "저장하기"}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -233,7 +277,7 @@ export function EditHabitScreen({ route, navigation }: Props): React.ReactElemen
                 },
               ]}
               onPress={() => navigation.goBack()}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isAdLoading}
             >
               <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>취소</Text>
             </TouchableOpacity>
@@ -244,13 +288,13 @@ export function EditHabitScreen({ route, navigation }: Props): React.ReactElemen
               styles.deleteButton,
               {
                 backgroundColor: theme.error,
-                opacity: isSubmitting ? 0.5 : 1,
+                opacity: isSubmitting || isAdLoading ? 0.5 : 1,
               },
             ]}
             onPress={handleDeleteHabit}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isAdLoading}
           >
-            <Text style={styles.deleteButtonText}>습관 삭제하기</Text>
+            <Text style={styles.deleteButtonText}>이 습관 삭제하기</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
