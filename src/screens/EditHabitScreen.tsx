@@ -63,7 +63,16 @@ export function EditHabitScreen({ route, navigation }: Props): React.ReactElemen
         notification: notification,
       };
 
+      // 기존 알림 설정과 새 알림 설정 비교
+      const notificationChanged = JSON.stringify(habit.notification) !== JSON.stringify(notification);
+
+      // 습관 정보 먼저 업데이트
       await updateHabit(updatedHabit);
+
+      // 알림 설정이 변경되었으면 알림 업데이트
+      if (notificationChanged) {
+        await updateHabitNotification(habit.id, notification || null);
+      }
 
       // 습관 수정 후 홈 화면으로 이동
       navigation.goBack();
@@ -82,14 +91,9 @@ export function EditHabitScreen({ route, navigation }: Props): React.ReactElemen
   };
 
   // 알림 설정 변경 처리
-  const handleNotificationChange = async (notificationSetting: NotificationSetting | null) => {
-    try {
-      await updateHabitNotification(habit.id, notificationSetting);
-      setNotification(notificationSetting || undefined);
-    } catch (error) {
-      console.error("알림 설정 중 오류 발생:", error);
-      Alert.alert("오류", "알림 설정을 저장하는 중 오류가 발생했습니다.");
-    }
+  const handleNotificationChange = (notificationSetting: NotificationSetting | null) => {
+    // 로컬 상태만 업데이트하고 실제 알림 스케줄링은 저장 버튼 클릭 시 수행
+    setNotification(notificationSetting || undefined);
   };
 
   const handleDeleteHabit = () => {

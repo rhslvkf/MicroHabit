@@ -55,22 +55,48 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
 
   // 시간 변경
   const handleTimeChange = (event: any, selectedDate?: Date) => {
-    setShowTimePicker(Platform.OS === "ios");
-
-    if (selectedDate) {
-      const hours = selectedDate.getHours().toString().padStart(2, "0");
-      const minutes = selectedDate.getMinutes().toString().padStart(2, "0");
-      const newTime = `${hours}:${minutes}`;
-
-      setTime(newTime);
-
-      if (enabled) {
-        onChange({
-          enabled,
-          time: newTime,
-          days,
-        });
+    // iOS의 경우 모달이 열려있으므로 별도 처리
+    if (Platform.OS === "ios") {
+      // 선택한 시간을 임시 저장만 하고 onChange는 호출하지 않음
+      if (selectedDate) {
+        const hours = selectedDate.getHours().toString().padStart(2, "0");
+        const minutes = selectedDate.getMinutes().toString().padStart(2, "0");
+        setTime(`${hours}:${minutes}`);
       }
+    } else {
+      // Android의 경우 선택 즉시 모달 닫기
+      setShowTimePicker(false);
+
+      if (selectedDate) {
+        const hours = selectedDate.getHours().toString().padStart(2, "0");
+        const minutes = selectedDate.getMinutes().toString().padStart(2, "0");
+        const newTime = `${hours}:${minutes}`;
+
+        setTime(newTime);
+
+        // Android에서는 선택 즉시 변경 사항 적용
+        if (enabled) {
+          onChange({
+            enabled,
+            time: newTime,
+            days,
+          });
+        }
+      }
+    }
+  };
+
+  // iOS: 시간 선택 확인 버튼 처리
+  const handleConfirmTime = () => {
+    setShowTimePicker(false);
+
+    // 변경 사항 적용
+    if (enabled) {
+      onChange({
+        enabled,
+        time,
+        days,
+      });
     }
   };
 
@@ -232,7 +258,7 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
                   <Text style={[styles.modalHeaderButton, { color: theme.primary }]}>취소</Text>
                 </TouchableOpacity>
                 <Text style={[styles.modalHeaderTitle, { color: theme.text }]}>시간 선택</Text>
-                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                <TouchableOpacity onPress={handleConfirmTime}>
                   <Text style={[styles.modalHeaderButton, { color: theme.primary }]}>확인</Text>
                 </TouchableOpacity>
               </View>
@@ -242,7 +268,7 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
                 display="spinner"
                 onChange={handleTimeChange}
                 // @ts-ignore - 안드로이드는 minuteInterval이 지원되지 않음
-                minuteInterval={5}
+                minuteInterval={1}
                 style={styles.timePicker}
               />
             </View>
@@ -251,7 +277,14 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
       )}
 
       {Platform.OS === "android" && showTimePicker && (
-        <DateTimePicker value={getTimeDate()} mode="time" is24Hour={true} onChange={handleTimeChange} />
+        <DateTimePicker
+          value={getTimeDate()}
+          mode="time"
+          is24Hour={true}
+          onChange={handleTimeChange}
+          // @ts-ignore - 안드로이드는 minuteInterval이 지원되지 않을 수 있지만 일부 버전에서는 지원됨
+          minuteInterval={1}
+        />
       )}
     </View>
   );
