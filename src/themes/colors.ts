@@ -13,6 +13,7 @@ export const lightTheme: ThemeColors = {
 
   // 기본색상
   primary: "#007AFF",
+  primaryLight: "#E5F2FF",
   secondary: "#5856D6",
   accent: "#FF9500",
 
@@ -47,6 +48,7 @@ export const darkTheme: ThemeColors = {
 
   // 기본색상
   primary: "#0A84FF",
+  primaryLight: "#0A3256",
   secondary: "#6E6CD8",
   accent: "#FF9F0A",
 

@@ -4,6 +4,7 @@ export type MainTabParamList = {
   Home: undefined;
   Calendar: { selectedDate?: string } | undefined;
   Settings: undefined;
+  Statistics: undefined;
 };
 
 export type RootStackParamList = {

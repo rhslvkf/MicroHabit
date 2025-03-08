@@ -8,6 +8,7 @@ import { AddHabitScreen } from "../screens/AddHabitScreen";
 import { EditHabitScreen } from "../screens/EditHabitScreen";
 import { CalendarScreen } from "../screens/CalendarScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
+import { StatisticsScreen } from "../screens/StatisticsScreen";
 import { RootStackParamList, MainTabParamList } from "./types";
 import { useTheme } from "../themes/ThemeContext";
 
@@ -44,6 +45,14 @@ function MainTabs() {
         options={{
           title: "캘린더",
           tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Statistics"
+        component={StatisticsScreen}
+        options={{
+          title: "통계",
+          tabBarIcon: ({ color, size }) => <Ionicons name="bar-chart-outline" size={size} color={color} />,
         }}
       />
       <Tab.Screen

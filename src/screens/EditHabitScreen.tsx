@@ -13,9 +13,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
-import { Habit } from "../types";
-import { updateHabit, deleteHabit, getHabits } from "../utils/storage";
+import { Habit, Category, NotificationSetting } from "../types";
+import { updateHabit, deleteHabit, getHabits, getCategories, updateHabitNotification } from "../utils/storage";
 import { useTheme } from "../themes/ThemeContext";
+import { CategorySelector } from "../components/common/CategorySelector";
+import { NotificationSelector } from "../components/common/NotificationSelector";
 
 type Props = NativeStackScreenProps<RootStackParamList, "EditHabit">;
 
@@ -24,7 +26,24 @@ export function EditHabitScreen({ route, navigation }: Props): React.ReactElemen
   const { habit } = route.params;
   const [title, setTitle] = useState(habit.title);
   const [description, setDescription] = useState(habit.description || "");
+  const [categoryId, setCategoryId] = useState(habit.categoryId || "other");
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notification, setNotification] = useState<NotificationSetting | undefined>(habit.notification);
+
+  // 카테고리 목록 로드
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const loadedCategories = await getCategories();
+        setCategories(loadedCategories);
+      } catch (error) {
+        console.error("카테고리 목록 로드 오류:", error);
+      }
+    };
+
+    loadCategories();
+  }, []);
 
   const handleUpdateHabit = async () => {
     // 제목 입력 검증
@@ -40,6 +59,8 @@ export function EditHabitScreen({ route, navigation }: Props): React.ReactElemen
         ...habit,
         title: title.trim(),
         description: description.trim() || undefined,
+        categoryId: categoryId,
+        notification: notification,
       };
 
       await updateHabit(updatedHabit);
@@ -48,9 +69,26 @@ export function EditHabitScreen({ route, navigation }: Props): React.ReactElemen
       navigation.goBack();
     } catch (error) {
       console.error("습관 수정 중 오류 발생:", error);
-      Alert.alert("오류", "습관을 수정하는 중 오류가 발생했습니다.");
+
+      // 중복 습관 이름에 대한 에러 메시지 구분
+      if (error instanceof Error && error.message.includes("같은 이름의 습관이 이미 존재")) {
+        Alert.alert("알림", error.message);
+      } else {
+        Alert.alert("오류", "습관을 수정하는 중 오류가 발생했습니다.");
+      }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // 알림 설정 변경 처리
+  const handleNotificationChange = async (notificationSetting: NotificationSetting | null) => {
+    try {
+      await updateHabitNotification(habit.id, notificationSetting);
+      setNotification(notificationSetting || undefined);
+    } catch (error) {
+      console.error("알림 설정 중 오류 발생:", error);
+      Alert.alert("오류", "알림 설정을 저장하는 중 오류가 발생했습니다.");
     }
   };
 
@@ -110,6 +148,15 @@ export function EditHabitScreen({ route, navigation }: Props): React.ReactElemen
             </View>
 
             <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: theme.text }]}>카테고리</Text>
+              <CategorySelector
+                categories={categories}
+                selectedCategoryId={categoryId}
+                onSelectCategory={setCategoryId}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: theme.text }]}>설명 (선택사항)</Text>
               <TextInput
                 style={[
@@ -130,6 +177,10 @@ export function EditHabitScreen({ route, navigation }: Props): React.ReactElemen
                 textAlignVertical="top"
                 maxLength={200}
               />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <NotificationSelector notificationSetting={notification} onChange={handleNotificationChange} />
             </View>
           </View>
 

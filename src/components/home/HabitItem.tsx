@@ -1,7 +1,9 @@
 import React from "react";
 import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
-import { Habit } from "../../types";
+import { Habit, Category } from "../../types";
 import { useTheme } from "../../themes/ThemeContext";
+import { Ionicons } from "@expo/vector-icons";
+import { getCategories } from "../../utils/storage";
 
 interface HabitItemProps {
   habit: Habit;
@@ -11,6 +13,24 @@ interface HabitItemProps {
 
 export function HabitItem({ habit, onToggle, onLongPress }: HabitItemProps): React.ReactElement {
   const { theme } = useTheme();
+  const [category, setCategory] = React.useState<Category | null>(null);
+
+  // 카테고리 정보 로드
+  React.useEffect(() => {
+    const loadCategory = async () => {
+      try {
+        const categories = await getCategories();
+        const matchedCategory = categories.find((c) => c.id === habit.categoryId);
+        if (matchedCategory) {
+          setCategory(matchedCategory);
+        }
+      } catch (error) {
+        console.error("카테고리 로드 오류:", error);
+      }
+    };
+
+    loadCategory();
+  }, [habit.categoryId]);
 
   return (
     <TouchableOpacity
@@ -31,6 +51,14 @@ export function HabitItem({ habit, onToggle, onLongPress }: HabitItemProps): Rea
           {habit.isCompleted && <View style={styles.checkmark} />}
         </View>
         <View style={styles.textContainer}>
+          {category && (
+            <View style={styles.categoryContainer}>
+              <View style={[styles.categoryIcon, { backgroundColor: category.color }]}>
+                <Ionicons name={category.icon as any} size={12} color="white" />
+              </View>
+              <Text style={[styles.categoryName, { color: category.color }]}>{category.name}</Text>
+            </View>
+          )}
           <Text
             style={[
               styles.title,
@@ -99,5 +127,22 @@ const styles = StyleSheet.create({
   editHint: {
     fontSize: 12,
     marginLeft: 8,
+  },
+  categoryContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  categoryIcon: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 4,
+  },
+  categoryName: {
+    fontSize: 12,
+    fontWeight: "500",
   },
 });

@@ -13,6 +13,7 @@ export interface ThemeColors {
 
   // 기본색상
   primary: string;
+  primaryLight: string;
   secondary: string;
   accent: string;
 

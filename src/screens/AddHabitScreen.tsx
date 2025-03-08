@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -13,10 +13,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
-import { Habit } from "../types";
-import { addHabit } from "../utils/storage";
+import { Habit, Category, NotificationSetting } from "../types";
+import { addHabit, getCategories } from "../utils/storage";
 import { getTodayISOString } from "../utils/date";
 import { useTheme } from "../themes/ThemeContext";
+import { CategorySelector } from "../components/common/CategorySelector";
+import { NotificationSelector } from "../components/common/NotificationSelector";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddHabit">;
 
@@ -24,7 +26,24 @@ export function AddHabitScreen({ navigation }: Props): React.ReactElement {
   const { theme } = useTheme();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [categoryId, setCategoryId] = useState("other"); // 기본 카테고리는 '기타'
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notification, setNotification] = useState<NotificationSetting | undefined>(undefined);
+
+  // 카테고리 목록 로드
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const loadedCategories = await getCategories();
+        setCategories(loadedCategories);
+      } catch (error) {
+        console.error("카테고리 목록 로드 오류:", error);
+      }
+    };
+
+    loadCategories();
+  }, []);
 
   const handleAddHabit = async () => {
     // 제목 입력 검증
@@ -45,6 +64,8 @@ export function AddHabitScreen({ navigation }: Props): React.ReactElement {
         isCompleted: false,
         createdAt: today,
         completedDates: [],
+        categoryId: categoryId,
+        notification: notification,
       };
 
       await addHabit(newHabit);
@@ -52,11 +73,20 @@ export function AddHabitScreen({ navigation }: Props): React.ReactElement {
       // 습관 추가 후 홈 화면으로 이동
       navigation.goBack();
     } catch (error) {
-      console.error("습관 추가 중 오류 발생:", error);
-      Alert.alert("오류", "습관을 추가하는 중 오류가 발생했습니다.");
+      // 중복 습관 이름에 대한 에러 메시지 구분
+      if (error instanceof Error && error.message.includes("같은 이름의 습관이 이미 존재")) {
+        Alert.alert("알림", error.message);
+      } else {
+        Alert.alert("오류", "습관을 추가하는 중 오류가 발생했습니다.");
+      }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // 알림 설정 변경 처리
+  const handleNotificationChange = (notificationSetting: NotificationSetting | null) => {
+    setNotification(notificationSetting || undefined);
   };
 
   return (
@@ -91,6 +121,15 @@ export function AddHabitScreen({ navigation }: Props): React.ReactElement {
             </View>
 
             <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: theme.text }]}>카테고리</Text>
+              <CategorySelector
+                categories={categories}
+                selectedCategoryId={categoryId}
+                onSelectCategory={setCategoryId}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: theme.text }]}>설명 (선택사항)</Text>
               <TextInput
                 style={[
@@ -104,13 +143,16 @@ export function AddHabitScreen({ navigation }: Props): React.ReactElement {
                 ]}
                 value={description}
                 onChangeText={setDescription}
-                placeholder="습관에 대한 설명이나 이유를 적어주세요"
+                placeholder="습관에 대한 상세 내용이나 목표를 적어보세요"
                 placeholderTextColor={theme.textDisabled}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
-                maxLength={200}
               />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <NotificationSelector notificationSetting={notification} onChange={handleNotificationChange} />
             </View>
           </View>
 

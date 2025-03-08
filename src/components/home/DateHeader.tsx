@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { formatDateToKorean } from "../../utils/date";
+import { formatDateToKorean, getTodayISOString } from "../../utils/date";
 import { useTheme } from "../../themes/ThemeContext";
 
 interface DateHeaderProps {
@@ -9,7 +9,14 @@ interface DateHeaderProps {
 
 export function DateHeader({ date }: DateHeaderProps): React.ReactElement {
   const { theme } = useTheme();
-  const formattedDate = formatDateToKorean(date);
+
+  // 항상 최신 날짜를 사용하도록 useMemo 사용
+  const formattedDate = useMemo(() => {
+    // date가 없거나 오늘 날짜가 아니라면 오늘 날짜 사용
+    const today = getTodayISOString();
+    const dateToUse = date || today;
+    return formatDateToKorean(dateToUse);
+  }, [date]);
 
   return (
     <View style={[styles.container, { borderBottomColor: theme.divider }]}>
