@@ -7,6 +7,7 @@ import {
   cancelAllNotifications,
   getAllScheduledNotifications,
 } from "./notifications";
+import * as Notifications from "expo-notifications";
 
 const HABITS_STORAGE_KEY = "@MicroHabit:habits";
 const THEME_STORAGE_KEY = "microhabit_theme";
@@ -40,20 +41,46 @@ export async function saveHabits(habits: Habit[]): Promise<void> {
  * 새로운 습관을 추가합니다. 이름이 중복되면 에러를 발생시킵니다.
  */
 export async function addHabit(habit: Habit): Promise<void> {
-  const habits = await getHabits();
+  try {
+    const habits = await getHabits();
 
-  // 중복된 이름이 있는지 확인
-  const isDuplicate = habits.some(
-    (existingHabit) => existingHabit.title.trim().toLowerCase() === habit.title.trim().toLowerCase()
-  );
+    // 중복된 이름이 있는지 확인
+    const isDuplicate = habits.some(
+      (existingHabit) => existingHabit.title.trim().toLowerCase() === habit.title.trim().toLowerCase()
+    );
 
-  if (isDuplicate) {
-    throw new Error("같은 이름의 습관이 이미 존재합니다!");
+    if (isDuplicate) {
+      throw new Error("같은 이름의 습관이 이미 존재합니다!");
+    }
+
+    console.log(`[addHabit] 습관 추가 시작: ${habit.title}, 알림 설정:`, habit.notification);
+
+    // 습관 추가
+    const newHabits = [...habits, habit];
+    await saveHabits(newHabits);
+
+    // 알림 설정이 있으면 즉시 스케줄링
+    if (habit.notification && habit.notification.enabled) {
+      console.log(
+        `[${habit.title}] 새 습관 추가 시 알림 설정 시작 - 시간: ${habit.notification.time}, 요일:`,
+        habit.notification.days
+      );
+
+      try {
+        // 알림 설정 적용 (별도 함수 사용)
+        await updateHabitNotification(habit.id, habit.notification);
+        console.log(`[${habit.title}] 새 습관 알림 설정 완료`);
+      } catch (notificationError) {
+        console.error(`[${habit.title}] 새 습관 알림 설정 중 오류:`, notificationError);
+        // 알림 설정 실패해도 습관 추가는 유지
+      }
+    } else {
+      console.log(`[${habit.title}] 알림 설정 없음 또는 비활성화됨`);
+    }
+  } catch (error) {
+    console.error("습관 추가 중 오류:", error);
+    throw error;
   }
-
-  // 일단 습관 저장 (알림 설정이 있더라도 일단 그대로 저장)
-  // 실제 알림 스케줄링은 앱 시작 시 rescheduleAllHabitNotifications에서 처리됨
-  await saveHabits([...habits, habit]);
 }
 
 /**
@@ -94,9 +121,20 @@ export async function updateHabit(updatedHabit: Habit): Promise<void> {
  * 습관을 삭제합니다.
  */
 export async function deleteHabit(habitId: string): Promise<void> {
-  const habits = await getHabits();
-  const filteredHabits = habits.filter((habit) => habit.id !== habitId);
-  await saveHabits(filteredHabits);
+  try {
+    // 해당 습관의 알림 취소
+    await cancelHabitNotifications(habitId);
+
+    // 습관 데이터에서 삭제
+    const habits = await getHabits();
+    const filteredHabits = habits.filter((habit) => habit.id !== habitId);
+    await saveHabits(filteredHabits);
+
+    console.log(`습관 ID(${habitId}) 삭제 및 알림 취소 완료`);
+  } catch (error) {
+    console.error(`습관 삭제 중 오류:`, error);
+    throw error;
+  }
 }
 
 /**
@@ -319,6 +357,8 @@ export async function updateHabitNotification(
   notificationSetting: NotificationSetting | null
 ): Promise<void> {
   try {
+    console.log(`[알림 설정 시작] 습관 ID: ${habitId}, 설정:`, JSON.stringify(notificationSetting));
+
     const habits = await getHabits();
     const habit = habits.find((h) => h.id === habitId);
 
@@ -326,9 +366,13 @@ export async function updateHabitNotification(
       throw new Error("습관을 찾을 수 없습니다.");
     }
 
+    console.log(`[${habit.title}] 기존 알림 설정:`, JSON.stringify(habit.notification));
+
     // 기존 알림 취소 (이미 스케줄된 알림은 취소)
     if (habit.notification?.enabled) {
+      console.log(`[${habit.title}] 기존 알림 취소 중...`);
       await cancelHabitNotifications(habitId);
+      console.log(`[${habit.title}] 기존 알림 취소 완료`);
     }
 
     // 새 습관 객체 생성
@@ -337,22 +381,36 @@ export async function updateHabitNotification(
     // 알림 설정이 null이면 알림 제거
     if (!notificationSetting) {
       updatedHabit.notification = undefined;
+      console.log(`[${habit.title}] 알림 설정 삭제됨`);
     }
     // 알림이 활성화된 경우 실제로 스케줄링 수행
     else if (notificationSetting.enabled) {
+      // 시간 파싱
       const [hours, minutes] = notificationSetting.time.split(":").map(Number);
+      console.log(`[${habit.title}] 알림 시간 파싱: ${hours}시 ${minutes}분`);
+
+      // 요일 확인 - 비어 있으면 모든 요일 선택 (매일)
+      const weekdays =
+        notificationSetting.days && notificationSetting.days.length > 0
+          ? notificationSetting.days
+          : [1, 2, 3, 4, 5, 6, 7]; // 모든 요일
+
+      console.log(`[${habit.title}] 알림 스케줄링: ${hours}:${minutes}, 요일:`, weekdays);
 
       // 알림 스케줄링 실행
       const notificationIds = await scheduleHabitNotification(habit, {
         hour: hours,
         minute: minutes,
         repeats: true,
-        weekdays: notificationSetting.days.length > 0 ? notificationSetting.days : undefined,
+        weekdays: weekdays,
       });
+
+      console.log(`[${habit.title}] 스케줄링 결과 - 알림 ID:`, notificationIds);
 
       // 알림 ID 업데이트
       updatedHabit.notification = {
         ...notificationSetting,
+        days: weekdays, // 빈 배열이었으면 모든 요일로 업데이트
         notificationIds,
       };
 
@@ -379,6 +437,7 @@ export async function updateHabitNotification(
 
     // 저장
     await saveHabits(otherHabits);
+    console.log(`[알림 설정 완료] 습관 ID: ${habitId}`);
   } catch (error) {
     console.error(`알림 설정 중 오류 발생:`, error);
     throw error;
@@ -393,6 +452,7 @@ export async function rescheduleAllHabitNotifications(): Promise<void> {
     // 모든 기존 알림 취소
     console.log("기존 알림 전체 취소 중...");
     await cancelAllNotifications();
+    console.log("기존 알림 전체 취소 완료");
 
     const habits = await getHabits();
     if (!habits || habits.length === 0) {
@@ -400,23 +460,38 @@ export async function rescheduleAllHabitNotifications(): Promise<void> {
       return;
     }
 
+    console.log(`총 ${habits.length}개 습관 중 알림 설정 검사 시작`);
+
     // 알림이 활성화된 습관만 필터링
     const habitsWithNotifications = habits.filter((habit) => habit.notification && habit.notification.enabled);
 
     console.log(`알림이 있는 습관 ${habitsWithNotifications.length}개 발견, 다시 스케줄링 중...`);
+    habitsWithNotifications.forEach((habit, index) => {
+      console.log(
+        `${index + 1}. ${habit.title} - 시간: ${habit.notification?.time}, 요일: ${
+          habit.notification?.days?.join(",") || "매일"
+        }`
+      );
+    });
 
     // 각 습관에 대해 알림 재설정
     const updatedHabits: Habit[] = [];
+    const habitsThatStayTheSame: Habit[] = [];
 
-    for (const habit of habitsWithNotifications) {
+    for (const habit of habits) {
       try {
+        // 알림이 활성화된 경우에만 재설정
         if (habit.notification && habit.notification.enabled && habit.notification.time) {
           const [hourStr, minuteStr] = habit.notification.time.split(":");
           const hour = parseInt(hourStr, 10);
           const minute = parseInt(minuteStr, 10);
 
           if (!isNaN(hour) && !isNaN(minute)) {
-            console.log(`[${habit.title}] 알림 재설정 중: ${hour}:${minute}`);
+            console.log(
+              `[${habit.title}] 알림 재설정 중: ${hour}:${minute}, 요일: ${
+                habit.notification.days?.join(",") || "매일"
+              }`
+            );
 
             // 이전 알림 취소
             await cancelHabitNotifications(habit.id);
@@ -426,7 +501,10 @@ export async function rescheduleAllHabitNotifications(): Promise<void> {
               hour,
               minute,
               repeats: true,
-              weekdays: habit.notification.days || [],
+              weekdays:
+                habit.notification.days && habit.notification.days.length > 0
+                  ? habit.notification.days
+                  : [1, 2, 3, 4, 5, 6, 7], // 요일 지정이 없으면 모든 요일로 설정
             });
 
             // 알림 ID 업데이트
@@ -435,31 +513,50 @@ export async function rescheduleAllHabitNotifications(): Promise<void> {
               notification: {
                 ...habit.notification,
                 notificationIds,
+                // 비어있는 days 배열인 경우 모든 요일로 업데이트
+                days:
+                  habit.notification.days && habit.notification.days.length > 0
+                    ? habit.notification.days
+                    : [1, 2, 3, 4, 5, 6, 7],
               },
             };
 
             updatedHabits.push(updatedHabit);
-            console.log(`[${habit.title}] 알림 재설정 완료, IDs: ${notificationIds.join(", ")}`);
+            console.log(`[${habit.title}] 알림 재설정 완료, ${notificationIds.length}개 알림 예약됨`);
           } else {
             console.error(`[${habit.title}] 유효하지 않은 시간 형식: ${habit.notification.time}`);
-            updatedHabits.push(habit);
+            habitsThatStayTheSame.push(habit);
           }
         } else {
-          updatedHabits.push(habit);
+          // 알림이 없는 습관은 그대로 유지
+          habitsThatStayTheSame.push(habit);
         }
       } catch (error) {
         console.error(`[${habit.title}] 알림 재설정 오류:`, error);
-        updatedHabits.push(habit);
+        // 오류가 발생해도 원래 습관 객체 유지
+        habitsThatStayTheSame.push(habit);
       }
     }
 
-    // 알림 ID가 업데이트된 습관 저장
-    if (updatedHabits.length > 0) {
-      // 알림이 없는 습관도 유지
-      const habitsWithoutNotifications = habits.filter((habit) => !habit.notification || !habit.notification.enabled);
+    // 알림 ID가 업데이트된 습관과 그대로 유지될 습관을 결합하여 저장
+    const finalHabits = [
+      ...updatedHabits,
+      ...habitsThatStayTheSame.filter((h) => !updatedHabits.some((uh) => uh.id === h.id)),
+    ]; // 중복 제거
 
-      await saveHabits([...updatedHabits, ...habitsWithoutNotifications]);
-      console.log("모든 습관 알림 재설정 완료");
+    // 업데이트된 습관 저장
+    await saveHabits(finalHabits);
+    console.log(`모든 습관 알림 재설정 완료: ${updatedHabits.length}개 습관 업데이트됨`);
+
+    // 최종 스케줄된 알림 확인
+    try {
+      const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
+      console.log(`현재 스케줄된 알림 총 ${allScheduled.length}개:`);
+      allScheduled.forEach((notification: Notifications.NotificationRequest, index: number) => {
+        console.log(`알림 ${index + 1}: ID=${notification.identifier}, 내용:`, notification.content.title);
+      });
+    } catch (logError) {
+      console.error("스케줄된 알림 로깅 중 오류:", logError);
     }
   } catch (error) {
     console.error("습관 알림 재설정 오류:", error);

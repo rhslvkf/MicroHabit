@@ -9,6 +9,7 @@ import { EditHabitScreen } from "../screens/EditHabitScreen";
 import { CalendarScreen } from "../screens/CalendarScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { StatisticsScreen } from "../screens/StatisticsScreen";
+import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { RootStackParamList, MainTabParamList } from "./types";
 import { useTheme } from "../themes/ThemeContext";
 
@@ -134,6 +135,23 @@ export function AppNavigator() {
             presentation: "card",
             headerShown: true,
             headerTitle: "습관 수정",
+            headerBackTitle: "뒤로",
+            headerTintColor: theme.primary,
+            headerStyle: {
+              backgroundColor: theme.background,
+            },
+            headerTitleStyle: {
+              color: theme.text,
+            },
+          }}
+        />
+        <Stack.Screen
+          name="Notifications"
+          component={NotificationsScreen}
+          options={{
+            presentation: "card",
+            headerShown: true,
+            headerTitle: "알림 관리",
             headerBackTitle: "뒤로",
             headerTintColor: theme.primary,
             headerStyle: {

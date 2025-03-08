@@ -11,4 +11,5 @@ export type RootStackParamList = {
   Main: undefined;
   AddHabit: undefined;
   EditHabit: { habit: Habit };
+  Notifications: undefined;
 };

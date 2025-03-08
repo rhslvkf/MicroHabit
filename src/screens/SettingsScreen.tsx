@@ -45,6 +45,21 @@ export function SettingsScreen({ navigation }: Props): React.ReactElement {
         </View>
 
         <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>알림 설정</Text>
+
+          <TouchableOpacity
+            style={[styles.settingItem, { backgroundColor: theme.card }]}
+            onPress={() => navigation.navigate("Notifications")}
+          >
+            <View style={styles.settingContent}>
+              <Ionicons name="notifications" size={22} color={theme.text} style={styles.settingIcon} />
+              <Text style={[styles.settingText, { color: theme.text }]}>알림 관리</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>앱 정보</Text>
 
           <View style={[styles.settingItem, { backgroundColor: theme.card }]}>

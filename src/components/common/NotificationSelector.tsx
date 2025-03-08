@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View, Text, Switch, TouchableOpacity, Modal, Platform, ScrollView, Button } from "react-native";
+import {
+  StyleSheet,
+  View,
+  Text,
+  Switch,
+  TouchableOpacity,
+  Modal,
+  Platform,
+  ScrollView,
+  Button,
+  Alert,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useTheme } from "../../themes/ThemeContext";
@@ -28,7 +39,7 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
       // 기본값 설정
       setEnabled(false);
       setTime("08:00");
-      setDays([]);
+      setDays([1, 2, 3, 4, 5, 6, 7]); // 모든 요일 선택(매일)
     }
   }, [notificationSetting]);
 
@@ -37,12 +48,25 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
     setEnabled(value);
 
     if (value) {
-      // 알림 활성화
-      onChange({
-        enabled: true,
-        time,
-        days,
-      });
+      // 알림 활성화 시 요일이 선택되어 있지 않으면 모든 요일 선택
+      if (days.length === 0) {
+        const allDays = [1, 2, 3, 4, 5, 6, 7];
+        setDays(allDays);
+
+        // 알림 활성화
+        onChange({
+          enabled: true,
+          time,
+          days: allDays,
+        });
+      } else {
+        // 알림 활성화
+        onChange({
+          enabled: true,
+          time,
+          days,
+        });
+      }
     } else {
       // 알림 비활성화
       onChange({
@@ -112,7 +136,22 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
 
     setDays(newDays);
 
-    if (enabled) {
+    // 모든 요일 해제 시 알림 OFF
+    if (newDays.length === 0 && enabled) {
+      setEnabled(false);
+      onChange({
+        enabled: false,
+        time,
+        days: newDays,
+      });
+
+      // 모든 요일 해제 시 경고 메시지
+      Alert.alert(
+        "알림 비활성화",
+        "모든 요일이 해제되어 알림이 비활성화되었습니다. 알림을 다시 활성화하려면 요일을 선택해주세요.",
+        [{ text: "확인", style: "default" }]
+      );
+    } else if (enabled) {
       onChange({
         enabled,
         time,
@@ -124,11 +163,28 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
   // 모든 요일 선택/해제
   const handleToggleAllDays = () => {
     const allDays = [1, 2, 3, 4, 5, 6, 7];
-    const newDays = days.length === 7 ? [] : allDays;
+    // 이미 모든 요일이 선택된 경우에만 빈 배열로 변경
+    const isAllSelected = days.length === 7 && days.every((day) => allDays.includes(day));
+    const newDays = isAllSelected ? [] : allDays;
 
     setDays(newDays);
 
-    if (enabled) {
+    // 모든 요일 해제 시 알림 OFF
+    if (newDays.length === 0 && enabled) {
+      setEnabled(false);
+      onChange({
+        enabled: false,
+        time,
+        days: newDays,
+      });
+
+      // 모든 요일 해제 시 경고 메시지
+      Alert.alert(
+        "알림 비활성화",
+        "모든 요일이 해제되어 알림이 비활성화되었습니다. 알림을 다시 활성화하려면 요일을 선택해주세요.",
+        [{ text: "확인", style: "default" }]
+      );
+    } else if (enabled) {
       onChange({
         enabled,
         time,
@@ -150,7 +206,7 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
   // 선택된 요일 텍스트
   const getDaysText = () => {
     if (days.length === 0) {
-      return "매일";
+      return "선택 안함";
     } else if (days.length === 7) {
       return "매일";
     } else {
@@ -189,65 +245,74 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
         />
       </View>
 
-      {enabled && (
-        <View style={styles.settingsContainer}>
-          <TouchableOpacity
-            style={[styles.settingRow, { borderBottomColor: theme.divider }]}
-            onPress={handleOpenTimePicker}
-          >
-            <View style={styles.settingLabelContainer}>
-              <Ionicons name="time-outline" size={20} color={theme.text} style={styles.icon} />
-              <Text style={[styles.settingLabel, { color: theme.text }]}>시간</Text>
-            </View>
-            <Text style={[styles.settingValue, { color: theme.primary }]}>{getTimeText()}</Text>
-          </TouchableOpacity>
+      {/* 알림 활성화 여부와 관계없이 항상 설정 UI 표시 */}
+      <View style={styles.settingsContainer}>
+        <TouchableOpacity
+          style={[styles.settingRow, { borderBottomColor: theme.divider }]}
+          onPress={handleOpenTimePicker}
+        >
+          <View style={styles.settingLabelContainer}>
+            <Ionicons name="time-outline" size={20} color={theme.text} style={styles.icon} />
+            <Text style={[styles.settingLabel, { color: theme.text }]}>시간</Text>
+          </View>
+          <Text style={[styles.settingValue, { color: theme.primary }]}>{getTimeText()}</Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingRow} onPress={handleToggleDayPicker}>
-            <View style={styles.settingLabelContainer}>
-              <Ionicons name="calendar-outline" size={20} color={theme.text} style={styles.icon} />
-              <Text style={[styles.settingLabel, { color: theme.text }]}>요일</Text>
-            </View>
-            <View style={styles.dayTextContainer}>
-              <Text style={[styles.settingValue, { color: theme.primary }]}>{getDaysText()}</Text>
-              <Ionicons
-                name={showDayPicker ? "chevron-up-outline" : "chevron-down-outline"}
-                size={16}
-                color={theme.primary}
-                style={styles.chevron}
-              />
-            </View>
-          </TouchableOpacity>
+        <TouchableOpacity style={styles.settingRow} onPress={handleToggleDayPicker}>
+          <View style={styles.settingLabelContainer}>
+            <Ionicons name="calendar-outline" size={20} color={theme.text} style={styles.icon} />
+            <Text style={[styles.settingLabel, { color: theme.text }]}>요일</Text>
+          </View>
+          <View style={styles.dayTextContainer}>
+            <Text style={[styles.settingValue, { color: days.length === 0 ? theme.error : theme.primary }]}>
+              {getDaysText()}
+            </Text>
+            <Ionicons
+              name={showDayPicker ? "chevron-up-outline" : "chevron-down-outline"}
+              size={16}
+              color={theme.primary}
+              style={styles.chevron}
+            />
+          </View>
+        </TouchableOpacity>
 
-          {showDayPicker && (
-            <View style={[styles.dayPickerContainer, { backgroundColor: theme.card }]}>
-              <View style={styles.dayPickerHeader}>
-                <Text style={[styles.dayPickerTitle, { color: theme.text }]}>요일 선택</Text>
-                <TouchableOpacity onPress={handleToggleAllDays}>
-                  <Text style={[styles.allDaysButton, { color: theme.primary }]}>
-                    {days.length === 7 ? "모두 해제" : "모두 선택"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.daysContainer}>
-                {["월", "화", "수", "목", "금", "토", "일"].map((day, index) => {
-                  const dayNumber = index + 1;
-                  const isSelected = days.includes(dayNumber);
-
-                  return (
-                    <TouchableOpacity
-                      key={dayNumber}
-                      style={[styles.dayButton, isSelected && { backgroundColor: theme.primary }]}
-                      onPress={() => handleToggleDay(dayNumber)}
-                    >
-                      <Text style={[styles.dayButtonText, { color: isSelected ? "white" : theme.text }]}>{day}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+        {showDayPicker && (
+          <View style={[styles.dayPickerContainer, { backgroundColor: theme.card }]}>
+            <View style={styles.dayPickerHeader}>
+              <Text style={[styles.dayPickerTitle, { color: theme.text }]}>요일 선택</Text>
+              <TouchableOpacity onPress={handleToggleAllDays}>
+                <Text style={[styles.allDaysButton, { color: theme.primary }]}>
+                  {days.length === 7 ? "모두 해제" : "모두 선택"}
+                </Text>
+              </TouchableOpacity>
             </View>
-          )}
-        </View>
-      )}
+            <View style={styles.daysContainer}>
+              {["월", "화", "수", "목", "금", "토", "일"].map((day, index) => {
+                const dayNumber = index + 1;
+                const isSelected = days.includes(dayNumber);
+
+                return (
+                  <TouchableOpacity
+                    key={dayNumber}
+                    style={[styles.dayButton, isSelected && { backgroundColor: theme.primary }]}
+                    onPress={() => handleToggleDay(dayNumber)}
+                  >
+                    <Text style={[styles.dayButtonText, { color: isSelected ? "white" : theme.text }]}>{day}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* 요일이 선택되지 않았을 때 경고 메시지 표시 */}
+        {enabled && days.length === 0 && (
+          <View style={[styles.warningContainer, { backgroundColor: "rgba(255, 0, 0, 0.1)" }]}>
+            <Ionicons name="warning-outline" size={16} color={theme.error} style={styles.warningIcon} />
+            <Text style={[styles.warningText, { color: theme.error }]}>알림을 활성화하려면 요일을 선택해주세요.</Text>
+          </View>
+        )}
+      </View>
 
       {Platform.OS === "ios" && showTimePicker && (
         <Modal visible={showTimePicker} transparent={true} animationType="slide">
@@ -393,5 +458,19 @@ const styles = StyleSheet.create({
   },
   timePicker: {
     height: 200,
+  },
+  warningContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 8,
+    marginTop: 12,
+    borderRadius: 6,
+  },
+  warningIcon: {
+    marginRight: 6,
+  },
+  warningText: {
+    fontSize: 13,
+    flex: 1,
   },
 });

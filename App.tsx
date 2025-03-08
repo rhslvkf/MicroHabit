@@ -20,24 +20,41 @@ const AppContent = () => {
     // 알림 초기화 및 필요한 경우만 재설정
     async function initNotifications() {
       try {
+        console.log("알림 초기화 시작...");
+
         // 알림 권한 요청
         const token = await registerForPushNotificationsAsync();
 
         if (token) {
-          console.log("알림 권한 획득");
+          console.log("알림 권한 획득됨");
 
-          // 이미 스케줄된 알림이 있는지 확인
-          const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+          // 기존에 예약된 알림 로깅
+          try {
+            const existingNotifications = await Notifications.getAllScheduledNotificationsAsync();
+            console.log(`현재 스케줄된 알림 ${existingNotifications.length}개 확인됨`);
 
-          // 스케줄된 알림이 없는 경우에만 재설정
-          if (scheduledNotifications.length === 0) {
-            console.log("스케줄된 알림이 없어 알림 재설정 시작");
-            await rescheduleAllHabitNotifications();
-          } else {
-            console.log(`이미 ${scheduledNotifications.length}개의 알림이 스케줄되어 있어 재설정 건너뜀`);
+            if (existingNotifications.length > 0) {
+              existingNotifications.forEach((notification, index) => {
+                console.log(`기존 알림 ${index + 1}: ID=${notification.identifier}`);
+              });
+            }
+          } catch (checkError) {
+            console.error("기존 알림 확인 중 오류:", checkError);
+          }
+
+          // 알림 초기화 시 무조건 재설정하도록 변경
+          console.log("알림 전체 재설정 시작");
+          await rescheduleAllHabitNotifications();
+
+          // 재설정 후 알림 상태 로깅
+          try {
+            const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+            console.log(`알림 재설정 완료: ${scheduledNotifications.length}개 알림 예약됨`);
+          } catch (logError) {
+            console.error("알림 재설정 후 로깅 중 오류:", logError);
           }
         } else {
-          console.log("알림 권한 없음");
+          console.log("알림 권한 없음 - 사용자가 거부했거나 권한을 설정하지 않음");
         }
       } catch (error) {
         console.error("알림 초기화 오류:", error);
