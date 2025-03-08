@@ -1,18 +1,7 @@
-import React, { useState, useEffect } from "react";
-import {
-  StyleSheet,
-  View,
-  Text,
-  Switch,
-  TouchableOpacity,
-  Modal,
-  Platform,
-  ScrollView,
-  Button,
-  Alert,
-} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import React, { useEffect, useState } from "react";
+import { Alert, Modal, Platform, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "../../themes/ThemeContext";
 import { NotificationSetting } from "../../types";
 
@@ -48,33 +37,27 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
     setEnabled(value);
 
     if (value) {
-      // 알림 활성화 시 요일이 선택되어 있지 않으면 모든 요일 선택
+      // 알림 활성화 시 요일이 선택되어 있지 않으면 경고 표시
       if (days.length === 0) {
-        const allDays = [1, 2, 3, 4, 5, 6, 7];
-        setDays(allDays);
-
-        // 알림 활성화
-        onChange({
-          enabled: true,
-          time,
-          days: allDays,
-        });
-      } else {
-        // 알림 활성화
-        onChange({
-          enabled: true,
-          time,
-          days,
-        });
+        // 경고 메시지만 표시하고 설정은 유지
+        // 사용자가 직접 요일 선택하도록 유도
+        return;
       }
     } else {
-      // 알림 비활성화
-      onChange({
-        enabled: false,
-        time,
-        days,
-      });
+      // 비활성화 시 부모 컴포넌트에 null 전달
+      onChange(null);
+      return;
     }
+
+    // 알림 설정 업데이트
+    const updatedSetting: NotificationSetting = {
+      enabled: value,
+      time,
+      days,
+    };
+
+    // 부모 컴포넌트에 전달
+    onChange(updatedSetting);
   };
 
   // 시간 변경
@@ -126,71 +109,74 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
 
   // 요일 선택
   const handleToggleDay = (day: number) => {
-    let newDays: number[];
+    let newDays: number[] = [];
 
     if (days.includes(day)) {
+      // 요일 제거
       newDays = days.filter((d) => d !== day);
     } else {
-      newDays = [...days, day].sort();
+      // 요일 추가
+      newDays = [...days, day];
     }
 
-    setDays(newDays);
-
-    // 모든 요일 해제 시 알림 OFF
+    // 모든 요일이 해제되었는지 확인
     if (newDays.length === 0 && enabled) {
-      setEnabled(false);
-      onChange({
-        enabled: false,
-        time,
-        days: newDays,
-      });
-
-      // 모든 요일 해제 시 경고 메시지
+      // 알림 활성화 상태에서 모든 요일이 해제되면 경고 표시
       Alert.alert(
         "알림 비활성화",
         "모든 요일이 해제되어 알림이 비활성화되었습니다. 알림을 다시 활성화하려면 요일을 선택해주세요.",
         [{ text: "확인", style: "default" }]
       );
-    } else if (enabled) {
-      onChange({
-        enabled,
-        time,
-        days: newDays,
-      });
     }
+
+    // 요일 설정 업데이트
+    setDays(newDays);
+
+    // 알림 설정 업데이트
+    const updatedSetting: NotificationSetting = {
+      enabled: enabled && newDays.length > 0, // 선택된 요일이 없으면 알림 자동 비활성화
+      time,
+      days: newDays,
+    };
+
+    // 부모 컴포넌트에 전달
+    onChange(updatedSetting);
   };
 
   // 모든 요일 선택/해제
   const handleToggleAllDays = () => {
     const allDays = [1, 2, 3, 4, 5, 6, 7];
-    // 이미 모든 요일이 선택된 경우에만 빈 배열로 변경
-    const isAllSelected = days.length === 7 && days.every((day) => allDays.includes(day));
-    const newDays = isAllSelected ? [] : allDays;
+    let newDays: number[] = [];
 
+    if (days.length === 7) {
+      // 모든 요일이 이미 선택되어 있으면 모두 해제
+      newDays = [];
+
+      // 알림 활성화 상태에서 모든 요일이 해제되면 경고 표시
+      if (enabled) {
+        Alert.alert(
+          "알림 비활성화",
+          "모든 요일이 해제되어 알림이 비활성화되었습니다. 알림을 다시 활성화하려면 요일을 선택해주세요.",
+          [{ text: "확인", style: "default" }]
+        );
+      }
+    } else {
+      // 일부만 선택되어 있거나 모두 해제되어 있으면 모두 선택
+      newDays = [...allDays];
+    }
+
+    // 요일 설정 업데이트
     setDays(newDays);
 
-    // 모든 요일 해제 시 알림 OFF
-    if (newDays.length === 0 && enabled) {
-      setEnabled(false);
-      onChange({
-        enabled: false,
-        time,
-        days: newDays,
-      });
+    // 알림 설정 업데이트
+    const updatedSetting: NotificationSetting = {
+      enabled: enabled && newDays.length > 0, // 선택된 요일이 없으면 알림 자동 비활성화
+      time,
+      days: newDays,
+    };
 
-      // 모든 요일 해제 시 경고 메시지
-      Alert.alert(
-        "알림 비활성화",
-        "모든 요일이 해제되어 알림이 비활성화되었습니다. 알림을 다시 활성화하려면 요일을 선택해주세요.",
-        [{ text: "확인", style: "default" }]
-      );
-    } else if (enabled) {
-      onChange({
-        enabled,
-        time,
-        days: newDays,
-      });
-    }
+    // 부모 컴포넌트에 전달
+    onChange(updatedSetting);
   };
 
   // 시간 선택기 열기
@@ -235,7 +221,7 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={[styles.label, { color: theme.text }]}>알림 설정</Text>
+        <Text style={[styles.label, { color: theme.text }]}>알림</Text>
         <Switch
           value={enabled}
           onValueChange={handleToggleEnabled}
@@ -279,7 +265,7 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
         {showDayPicker && (
           <View style={[styles.dayPickerContainer, { backgroundColor: theme.card }]}>
             <View style={styles.dayPickerHeader}>
-              <Text style={[styles.dayPickerTitle, { color: theme.text }]}>요일 선택</Text>
+              <Text style={[styles.dayPickerTitle, { color: theme.text }]}>요일</Text>
               <TouchableOpacity onPress={handleToggleAllDays}>
                 <Text style={[styles.allDaysButton, { color: theme.primary }]}>
                   {days.length === 7 ? "모두 해제" : "모두 선택"}
@@ -309,7 +295,7 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
         {enabled && days.length === 0 && (
           <View style={[styles.warningContainer, { backgroundColor: "rgba(255, 0, 0, 0.1)" }]}>
             <Ionicons name="warning-outline" size={16} color={theme.error} style={styles.warningIcon} />
-            <Text style={[styles.warningText, { color: theme.error }]}>알림을 활성화하려면 요일을 선택해주세요.</Text>
+            <Text style={[styles.warningText, { color: theme.error }]}>"알림을 활성화하려면 요일을 선택해주세요."</Text>
           </View>
         )}
       </View>
@@ -322,7 +308,7 @@ export function NotificationSelector({ notificationSetting, onChange }: Notifica
                 <TouchableOpacity onPress={() => setShowTimePicker(false)}>
                   <Text style={[styles.modalHeaderButton, { color: theme.primary }]}>취소</Text>
                 </TouchableOpacity>
-                <Text style={[styles.modalHeaderTitle, { color: theme.text }]}>시간 선택</Text>
+                <Text style={[styles.modalHeaderTitle, { color: theme.text }]}>시간</Text>
                 <TouchableOpacity onPress={handleConfirmTime}>
                   <Text style={[styles.modalHeaderButton, { color: theme.primary }]}>확인</Text>
                 </TouchableOpacity>
