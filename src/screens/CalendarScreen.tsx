@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { StyleSheet, View, Text, FlatList, ScrollView } from "react-native";
+import { StyleSheet, View, Text, FlatList, ScrollView, TouchableOpacity, Alert, Vibration } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Calendar, DateData } from "react-native-calendars";
 import { CompositeScreenProps } from "@react-navigation/native";
@@ -7,7 +7,7 @@ import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList, MainTabParamList } from "../navigation/types";
 import { Habit, Category } from "../types";
-import { getHabits, getCategories, calculateCompletionStatus } from "../utils/storage";
+import { getHabits, getCategories, calculateCompletionStatus, toggleHabitCompletion } from "../utils/storage";
 import { formatDate, getTodayISOString } from "../utils/date";
 import { useTheme } from "../themes/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
@@ -28,6 +28,7 @@ export function CalendarScreen({ navigation, route }: Props): React.ReactElement
   const [markedDates, setMarkedDates] = useState<{ [date: string]: any }>({});
   const [dateHabits, setDateHabits] = useState<Habit[]>([]);
   const [themeMode, setThemeMode] = useState<string>(mode);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // 테마 모드 변경 감지
   useEffect(() => {
@@ -96,6 +97,40 @@ export function CalendarScreen({ navigation, route }: Props): React.ReactElement
       setMarkedDates(marks);
     },
     [selectedDate, getHabitColor]
+  );
+
+  // 습관 체크/언체크 핸들러
+  const handleToggleHabit = useCallback(
+    async (habitId: string) => {
+      if (isUpdating) return;
+
+      setIsUpdating(true);
+      try {
+        // 진동 피드백
+        Vibration.vibrate(50);
+
+        // 습관 완료 상태 토글
+        const updatedHabits = await toggleHabitCompletion(habitId, selectedDate);
+        setHabits(updatedHabits);
+
+        // 업데이트된 습관 목록으로 달력 마커 재생성
+        generateMarkedDates(updatedHabits);
+
+        // 선택된 날짜의 습관 목록 업데이트
+        const shortDate = selectedDate.split("T")[0];
+        const updatedDateHabits = updatedHabits.map((habit) => ({
+          ...habit,
+          isCompleted: habit.completedDates.some((date) => date.split("T")[0] === shortDate),
+        }));
+        setDateHabits(updatedDateHabits);
+      } catch (error) {
+        console.error("습관 상태 변경 오류:", error);
+        Alert.alert("오류", "습관 상태를 변경하는 중 오류가 발생했습니다.");
+      } finally {
+        setIsUpdating(false);
+      }
+    },
+    [selectedDate, isUpdating, generateMarkedDates]
   );
 
   // 카테고리 찾기
@@ -229,7 +264,12 @@ export function CalendarScreen({ navigation, route }: Props): React.ReactElement
     const category = findCategory(item.categoryId);
 
     return (
-      <View style={[styles.habitItem, { backgroundColor: theme.card }]}>
+      <TouchableOpacity
+        style={[styles.habitItem, { backgroundColor: theme.card }]}
+        onPress={() => handleToggleHabit(item.id)}
+        disabled={isUpdating}
+        activeOpacity={0.7}
+      >
         <View style={styles.habitInfo}>
           {category && (
             <View style={styles.categoryContainer}>
@@ -244,17 +284,20 @@ export function CalendarScreen({ navigation, route }: Props): React.ReactElement
             <Text style={[styles.habitDescription, { color: theme.textSecondary }]}>{item.description}</Text>
           ) : null}
         </View>
-        <View
+        <TouchableOpacity
           style={[
-            styles.completionStatus,
+            styles.checkButton,
             item.isCompleted
-              ? [styles.completed, { backgroundColor: theme.habitComplete }]
-              : [styles.notCompleted, { backgroundColor: theme.habitIncomplete }],
+              ? [styles.checkedButton, { backgroundColor: theme.success }]
+              : [styles.uncheckedButton, { borderColor: theme.divider }],
           ]}
+          onPress={() => handleToggleHabit(item.id)}
+          disabled={isUpdating}
+          activeOpacity={0.7}
         >
-          <Text style={styles.statusText}>{item.isCompleted ? "완료" : "미완료"}</Text>
-        </View>
-      </View>
+          {item.isCompleted && <Ionicons name="checkmark" size={20} color="white" />}
+        </TouchableOpacity>
+      </TouchableOpacity>
     );
   };
 
@@ -394,6 +437,9 @@ export function CalendarScreen({ navigation, route }: Props): React.ReactElement
 
         <View style={styles.habitsHeaderContainer}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>이 날의 습관</Text>
+          <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
+            습관을 탭하여 완료 상태를 변경할 수 있습니다
+          </Text>
         </View>
 
         <View style={styles.habitsListContainer}>
@@ -451,6 +497,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "bold",
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    fontStyle: "italic",
   },
   habitsListContainer: {
     paddingHorizontal: 16,
@@ -463,39 +514,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 8,
   },
-  habitColor: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginRight: 12,
-  },
   habitInfo: {
     flex: 1,
-  },
-  habitTitle: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  habitDescription: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  completionStatus: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  completed: {},
-  notCompleted: {},
-  statusText: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "white",
-  },
-  emptyText: {
-    textAlign: "center",
-    padding: 24,
-    fontSize: 16,
   },
   categoryContainer: {
     flexDirection: "row",
@@ -506,13 +526,40 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    marginRight: 4,
     justifyContent: "center",
     alignItems: "center",
+    marginRight: 6,
   },
   categoryName: {
     fontSize: 12,
     fontWeight: "500",
-    marginRight: 4,
+  },
+  habitTitle: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  habitDescription: {
+    fontSize: 14,
+    marginTop: 4,
+  },
+  checkButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 12,
+  },
+  checkedButton: {
+    // backgroundColor는 동적으로 설정됨
+  },
+  uncheckedButton: {
+    borderWidth: 2,
+    backgroundColor: "transparent",
+  },
+  emptyText: {
+    textAlign: "center",
+    padding: 24,
+    fontSize: 16,
   },
 });
