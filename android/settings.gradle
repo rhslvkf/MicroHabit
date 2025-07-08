@@ -21,7 +21,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
   }
 }
 
-rootProject.name = 'MicroHabit'
+rootProject.name = '나의작은습관'
 
 dependencyResolutionManagement {
   versionCatalogs {

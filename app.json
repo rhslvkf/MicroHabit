@@ -7,6 +7,15 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "plugins": [
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-8843457940870268~6708399646",
+          "iosAppId": "ca-app-pub-8843457940870268~9206570475"
+        }
+      ]
+    ],
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
@@ -20,10 +29,7 @@
     "ios": {
       "bundleIdentifier": "com.fullmoon.MicroHabit",
       "buildNumber": "2",
-      "supportsTablet": true,
-      "config": {
-        "googleMobileAdsAppId": "ca-app-pub-8843457940870268~9206570475"
-      }
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
@@ -33,13 +39,15 @@
       "package": "com.fullmoon.MicroHabit",
       "versionCode": 2,
       "compileSdkVersion": 35,
-      "targetSdkVersion": 35,
-      "config": {
-        "googleMobileAdsAppId": "ca-app-pub-8843457940870268~6708399646"
-      }
+      "targetSdkVersion": 35
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c4d00333-c125-4e5b-9087-b7d2d1c25e5a"
+      }
     }
   }
 }
