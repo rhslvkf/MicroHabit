@@ -68,7 +68,7 @@ export function SettingsScreen({ navigation }: Props): React.ReactElement {
               <Text style={[styles.settingText, { color: theme.text }]}>버전</Text>
             </View>
             <Text style={[styles.settingStatus, { color: theme.textSecondary }]}>
-              {Constants.expoConfig?.version || "1.0.0"}
+              {Constants.expoConfig?.version || "1.1.0"}
             </Text>
           </View>
 
