@@ -28,7 +28,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.fullmoon.MicroHabit",
-      "buildNumber": "2",
+      "buildNumber": "8",
       "supportsTablet": true
     },
     "android": {
@@ -37,7 +37,7 @@
         "backgroundColor": "#6a3ce7"
       },
       "package": "com.fullmoon.MicroHabit",
-      "versionCode": 2,
+      "versionCode": 8,
       "compileSdkVersion": 35,
       "targetSdkVersion": 35
     },
